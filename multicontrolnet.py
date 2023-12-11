@@ -76,7 +76,18 @@ pipe = DiffusionPipeline.from_pretrained(
     torch_dtype=torch.float16
 ).to("cuda")
 
-if config_dict["lcm_lora"]["enable"]:
+use_ipadapter = config_dict["ip_adapter"]["enable"]
+if use_ipadapter:
+    pipe.load_ip_adapter(
+        config_dict["ip_adapter"]["folder"],
+        subfolder=config_dict["ip_adapter"]["subfolder"],
+        weight_name=config_dict["ip_adapter"]["weight_name"],
+        torch_dtype=torch.float16
+    )
+    pipe.set_ip_adapter_scale(config_dict["ip_adapter"]["scale"])
+    
+use_lcmlora = config_dict["lcm_lora"]["enable"]
+if use_lcmlora:
     from diffusers import LCMScheduler
     pipe.scheduler = LCMScheduler.from_config(
         pipe.scheduler.config,
@@ -84,7 +95,6 @@ if config_dict["lcm_lora"]["enable"]:
     )
     pipe.load_lora_weights(config_dict["lcm_lora"]["model_path"], adapter_name="lcm")
     pipe.set_adapters(["lcm"], adapter_weights=[config_dict["lcm_lora"]["weight"]])
-    
 else:
     from diffusers import DPMSolverMultistepScheduler
     pipe.scheduler = DPMSolverMultistepScheduler.from_pretrained(
@@ -102,20 +112,36 @@ prompt = config_dict["prompt"]
 negative_prompt = config_dict["negative_prompt"]
 seed = config_dict["seed"]
 steps = config_dict["steps"]
-guidance_scale = config_dict["guidance_scale"]
+guidance_scale = 1.0 if use_lcmlora else config_dict["guidance_scale"]
 
-result = pipe(
-    prompt=prompt,
-    negative_prompt=negative_prompt,
-    num_frames=n_frames,
-    width=512,
-    height=512,
-    conditioning_frames=controlimage,
-    num_inference_steps=steps,
-    guidance_scale=guidance_scale,
-    generator=torch.manual_seed(seed),
-    controlnet_conditioning_scale=controlnet_conditioning_scale,
-).frames[0]
+if use_ipadapter:
+    ip_image = Image.open(config_dict["ip_adapter"]["image_path"])
+    result = pipe(
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        ip_adapter_image=ip_image,
+        num_frames=n_frames,
+        width=512,
+        height=512,
+        conditioning_frames=controlimage,
+        num_inference_steps=steps,
+        guidance_scale=guidance_scale,
+        generator=torch.manual_seed(seed),
+        controlnet_conditioning_scale=controlnet_conditioning_scale,
+    ).frames[0]
+else:
+    result = pipe(
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        num_frames=n_frames,
+        width=512,
+        height=512,
+        conditioning_frames=controlimage,
+        num_inference_steps=steps,
+        guidance_scale=guidance_scale,
+        generator=torch.manual_seed(seed),
+        controlnet_conditioning_scale=controlnet_conditioning_scale,
+    ).frames[0]
 
 from diffusers.utils import export_to_gif
 export_to_gif(result, os.path.join("outputs", time_str, "result.gif"))
