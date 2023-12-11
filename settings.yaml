@@ -1,0 +1,34 @@
+pretrained_model_path: "model/yabalMixTrue25Dv5_ema"
+vae: 
+  single_file: True 
+  model_path: "vae/vae-ft-mse-840000-ema-pruned.safetensors"
+
+motion_module_path: "animatediff-motion-adapter-v1-5-2"
+
+controlnet:
+  - model_path: "controlnet/control_v11p_sd15_openpose"
+    image_path: "controlnet-image/openpose_full.gif"
+    conditioning_scale: 0.8
+  - model_path: "controlnet/control_v11f1e_sd15_tile"
+    image_path: "controlnet-image/tile.gif"
+    conditioning_scale: 0.8
+
+prompt: "a girl, walking, best quality, extremely detailed"
+negative_prompt: "longbody, lowres, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality"
+
+seed: 222
+steps: 5
+guidance_scale: 7.5
+
+ip_adapter:
+  enable: False
+  folder: "IP-Apapter"
+  subfolder: "models"
+  weight_name: "ip-adapter-plus_sd15.safetensors"
+  source_image: "demo4.png"
+  scale: 0.6
+
+lcm_lora:
+  enable: True
+  model_path: "lora/lcm-lora-sdv1-5"
+  weight: 1.0
