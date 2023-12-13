@@ -96,14 +96,10 @@ if use_lcmlora:
     pipe.load_lora_weights(config_dict["lcm_lora"]["model_path"], adapter_name="lcm")
     pipe.set_adapters(["lcm"], adapter_weights=[config_dict["lcm_lora"]["weight"]])
 else:
-    from diffusers import DPMSolverMultistepScheduler
-    pipe.scheduler = DPMSolverMultistepScheduler.from_pretrained(
-        model_id,
-        subfolder="scheduler", 
+    from diffusers import DDIMScheduler
+    pipe.scheduler = DDIMScheduler.from_config(
+        pipe.scheduler.config,
         beta_schedule="linear",
-        clip_sample=False,
-        timestep_spacing="linspace",
-        steps_offset=1
     )
 
 pipe.enable_vae_slicing()
@@ -113,6 +109,9 @@ negative_prompt = config_dict["negative_prompt"]
 seed = config_dict["seed"]
 steps = config_dict["steps"]
 guidance_scale = 1.0 if use_lcmlora else config_dict["guidance_scale"]
+width = config_dict["width"]
+height = config_dict["height"]
+clip_skip = config_dict["clip_skip"] if isinstance(config_dict["clip_skip"], int) else None
 
 if use_ipadapter:
     ip_image = Image.open(config_dict["ip_adapter"]["image_path"])
@@ -121,26 +120,28 @@ if use_ipadapter:
         negative_prompt=negative_prompt,
         ip_adapter_image=ip_image,
         num_frames=n_frames,
-        width=512,
-        height=512,
+        width=width,
+        height=height,
         conditioning_frames=controlimage,
         num_inference_steps=steps,
         guidance_scale=guidance_scale,
         generator=torch.manual_seed(seed),
         controlnet_conditioning_scale=controlnet_conditioning_scale,
+        clip_skip=clip_skip
     ).frames[0]
 else:
     result = pipe(
         prompt=prompt,
         negative_prompt=negative_prompt,
         num_frames=n_frames,
-        width=512,
-        height=512,
+        width=width,
+        height=height,
         conditioning_frames=controlimage,
         num_inference_steps=steps,
         guidance_scale=guidance_scale,
         generator=torch.manual_seed(seed),
         controlnet_conditioning_scale=controlnet_conditioning_scale,
+        clip_skip=clip_skip
     ).frames[0]
 
 from diffusers.utils import export_to_gif
